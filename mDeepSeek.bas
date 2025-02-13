@@ -103,6 +103,9 @@ Function DS_Chat(prompt As String, Optional model As String = DEFAULT_MODEL, _
         apiKey = API_KEY ' Fallback to the constant if named range is missing or empty
     End If
     
+    ' Clean prompt
+    prompt = JsonEscape(prompt)
+    
     ' Prepare the request body
     Dim requestBody As String
     requestBody = "{""model"": """ & model & """, ""messages"": [{""role"": ""user"", ""content"": """ & prompt & """}], " & _
@@ -142,4 +145,37 @@ ErrorHandler:
     ' Clear status bar and restore settings
     Application.StatusBar = False
     Application.ScreenUpdating = True
+End Function
+
+'Source: https://stackoverflow.com/a/50854612
+Private Function JsonEscape(sText As String) As String
+
+    Const STR_CODES As String = "\u0000|\u0001|\u0002|\u0003|\u0004|\u0005|\u0006|\u0007|\b|\t|\n|\u000B|\f|\r|\u000E|\u000F|\u0010|\u0011|\u0012|\u0013|\u0014|\u0015|\u0016|\u0017|\u0018|\u0019|\u001A|\u001B|\u001C|\u001D|\u001E|\u001F"
+    Static vTranscode As Variant
+    Dim lIdx As Long
+    Dim lAsc As Long
+
+    If IsEmpty(vTranscode) Then
+        vTranscode = Split(STR_CODES, "|")
+    End If
+    
+    For lIdx = 1 To Len(sText)
+        lAsc = AscW(Mid$(sText, lIdx, 1))
+        If lAsc = 92 Or lAsc = 34 Then '--- \ and "
+            JsonEscape = JsonEscape & "\" & ChrW$(lAsc)
+        ElseIf lAsc >= 32 And lAsc < 256 Then
+            JsonEscape = JsonEscape & ChrW$(lAsc)
+        ElseIf lAsc >= 0 And lAsc < 32 Then
+            JsonEscape = JsonEscape & vTranscode(lAsc)
+        ElseIf Asc(Mid$(sText, lIdx, 1)) <> 63 Or Mid$(sText, lIdx, 1) = "?" Then '--- ?
+            JsonEscape = JsonEscape & ChrW$(AscW(Mid$(sText, lIdx, 1)))
+        Else
+            JsonEscape = JsonEscape & "\u" & Right$("0000" & Hex$(lAsc), 4)
+        End If
+    Next
+    
+    ' Replace actual newline characters with \n
+    JsonEscape = Replace(JsonEscape, vbCrLf, "\n")
+    JsonEscape = Replace(JsonEscape, vbLf, "\n")
+
 End Function
